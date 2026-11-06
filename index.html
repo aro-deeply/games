@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>가위바위보 챌린지</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for Sound FX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+            min-height: 100vh;
+        }
+        .font-jua {
+            font-family: 'Jua', sans-serif;
+        }
+        /* Custom Shake Animation */
+        @keyframes shake {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-15px) rotate(-10deg); }
+            75% { transform: translateY(-15px) rotate(10deg); }
+        }
+        .animate-shake {
+            animation: shake 0.4s infinite ease-in-out;
+        }
+        /* Pulse & Glow Effect */
+        .glow-win {
+            box-shadow: 0 0 25px rgba(34, 197, 94, 0.6);
+            border-color: #22c55e;
+        }
+        .glow-lose {
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+            border-color: #ef4444;
+        }
+        .glow-draw {
+            box-shadow: 0 0 25px rgba(234, 179, 8, 0.6);
+            border-color: #eab308;
+        }
+        /* Glassmorphic card */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="text-white flex flex-col justify-between items-center p-4 min-h-screen select-none">
+
+    <!-- Header Section -->
+    <header class="w-full max-w-xl text-center my-4">
+        <h1 class="font-jua text-4xl sm:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-pink-400 to-indigo-300 drop-shadow">
+            ✂️ 가위바위보 대결 ✊
+        </h1>
+        <p class="text-slate-300 text-sm mt-1">컴퓨터를 이기고 최장 연승 기록에 도전하세요!</p>
+    </header>
+
+    <!-- Main Game Container -->
+    <main class="w-full max-w-xl flex flex-col items-center gap-6">
+
+        <!-- Scoreboard & Stats -->
+        <div class="glass-card w-full rounded-2xl p-4 flex justify-around items-center shadow-2xl">
+            <div class="text-center">
+                <span class="text-xs text-slate-400 uppercase tracking-wider block">플레이어</span>
+                <span id="player-score" class="font-jua text-3xl sm:text-4xl text-emerald-400">0</span>
+            </div>
+            <div class="h-10 w-px bg-slate-700"></div>
+            <div class="text-center">
+                <span class="text-xs text-amber-400 font-bold uppercase tracking-wider block">🔥 현재 연승</span>
+                <span id="streak-score" class="font-jua text-3xl sm:text-4xl text-amber-300">0</span>
+            </div>
+            <div class="h-10 w-px bg-slate-700"></div>
+            <div class="text-center">
+                <span class="text-xs text-slate-400 uppercase tracking-wider block">컴퓨터</span>
+                <span id="computer-score" class="font-jua text-3xl sm:text-4xl text-rose-400">0</span>
+            </div>
+        </div>
+
+        <!-- Battle Arena -->
+        <div class="glass-card w-full rounded-3xl p-6 sm:p-8 flex flex-col items-center relative overflow-hidden shadow-2xl">
+            
+            <!-- Result Text Header -->
+            <div class="h-12 flex items-center justify-center mb-4">
+                <span id="status-message" class="font-jua text-2xl sm:text-3xl text-amber-300 transition-all duration-300 text-center">
+                    선택해 주세요!
+                </span>
+            </div>
+
+            <!-- Hands Display Arena -->
+            <div class="flex justify-between items-center w-full my-4 px-2 sm:px-8">
+                <!-- Player Hand -->
+                <div class="flex flex-col items-center gap-3">
+                    <span class="text-slate-400 text-sm font-bold">YOU</span>
+                    <div id="player-hand-box" class="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-slate-800/80 border-2 border-slate-600 flex items-center justify-center text-6xl sm:text-7xl transition-all duration-300 shadow-inner">
+                        <span id="player-hand-icon">👊</span>
+                    </div>
+                </div>
+
+                <div class="font-jua text-2xl sm:text-3xl text-slate-500 font-bold">VS</div>
+
+                <!-- Computer Hand -->
+                <div class="flex flex-col items-center gap-3">
+                    <span class="text-slate-400 text-sm font-bold">CPU</span>
+                    <div id="computer-hand-box" class="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-slate-800/80 border-2 border-slate-600 flex items-center justify-center text-6xl sm:text-7xl transition-all duration-300 shadow-inner">
+                        <span id="computer-hand-icon">👊</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Draw/Win Effect Banner -->
+            <div id="result-banner" class="opacity-0 transition-opacity duration-300 mt-2 font-jua text-xl text-slate-300 min-h-[30px]">
+                -
+            </div>
+        </div>
+
+        <!-- Controls / Buttons -->
+        <div class="w-full grid grid-cols-3 gap-3 sm:gap-4">
+            <button onclick="playRound('scissors')" class="choice-btn group relative bg-gradient-to-b from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 active:scale-95 text-white p-4 sm:p-5 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-lg transition-all duration-200 border border-indigo-400/30">
+                <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform">✌️</span>
+                <span class="font-jua text-lg sm:text-xl">가위</span>
+            </button>
+            <button onclick="playRound('rock')" class="choice-btn group relative bg-gradient-to-b from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 active:scale-95 text-white p-4 sm:p-5 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-lg transition-all duration-200 border border-purple-400/30">
+                <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform">✊</span>
+                <span class="font-jua text-lg sm:text-xl">바위</span>
+            </button>
+            <button onclick="playRound('paper')" class="choice-btn group relative bg-gradient-to-b from-pink-500 to-pink-700 hover:from-pink-400 hover:to-pink-600 active:scale-95 text-white p-4 sm:p-5 rounded-2xl flex flex-col items-center justify-center gap-2 shadow-lg transition-all duration-200 border border-pink-400/30">
+                <span class="text-4xl sm:text-5xl group-hover:scale-110 transition-transform">🖐️</span>
+                <span class="font-jua text-lg sm:text-xl">보</span>
+            </button>
+        </div>
+
+    </main>
+
+    <!-- Footer Controls & Stats -->
+    <footer class="w-full max-w-xl mt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-slate-400 text-xs px-2">
+        <div class="flex gap-4">
+            <span>최고 연승: <strong id="max-streak" class="text-amber-400">0</strong></span>
+            <span>총 전적: <strong id="total-games" class="text-slate-200">0전 0승 0무 0패</strong></span>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="toggleAudio()" id="audio-btn" class="hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+                <i class="fa-solid fa-volume-high"></i> 소리 켜짐
+            </button>
+            <button onclick="resetStats()" class="hover:text-rose-400 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+                <i class="fa-solid fa-rotate-right"></i> 전적 초기화
+            </button>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Game Options Mapping
+        const CHOICES = {
+            rock: { name: '바위', icon: '✊', beats: 'scissors' },
+            paper: { name: '보', icon: '🖐️', beats: 'rock' },
+            scissors: { name: '가위', icon: '✌️', beats: 'paper' }
+        };
+
+        // State Variables
+        let stats = {
+            wins: 0,
+            losses: 0,
+            draws: 0,
+            streak: 0,
+            maxStreak: 0
+        };
+        let isPlaying = false;
+        let soundEnabled = true;
+
+        // Tone.js Sound Effects Setup
+        let synth, winSynth, loseSynth;
+
+        function initAudio() {
+            if (!synth) {
+                synth = new Tone.Synth().toDestination();
+                synth.volume.value = -12;
+                
+                winSynth = new Tone.PolySynth().toDestination();
+                winSynth.volume.value = -10;
+
+                loseSynth = new Tone.MembraneSynth().toDestination();
+                loseSynth.volume.value = -8;
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                
+                if (type === 'shake') {
+                    synth.triggerAttackRelease("C3", "16n");
+                } else if (type === 'win') {
+                    winSynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n");
+                } else if (type === 'lose') {
+                    loseSynth.triggerAttackRelease("G2", "8n");
+                } else if (type === 'draw') {
+                    synth.triggerAttackRelease("E3", "8n");
+                }
+            } catch(e) {
+                console.log("Audio play error:", e);
+            }
+        }
+
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('audio-btn');
+            if (soundEnabled) {
+                btn.innerHTML = `<i class="fa-solid fa-volume-high"></i> 소리 켜짐`;
+                btn.classList.remove('text-slate-500');
+            } else {
+                btn.innerHTML = `<i class="fa-solid fa-volume-xmark"></i> 소리 끔`;
+                btn.classList.add('text-slate-500');
+            }
+        }
+
+        // DOM Elements
+        const playerHandBox = document.getElementById('player-hand-box');
+        const computerHandBox = document.getElementById('computer-hand-box');
+        const playerHandIcon = document.getElementById('player-hand-icon');
+        const computerHandIcon = document.getElementById('computer-hand-icon');
+        const statusMessage = document.getElementById('status-message');
+        const resultBanner = document.getElementById('result-banner');
+        
+        const playerScoreEl = document.getElementById('player-score');
+        const computerScoreEl = document.getElementById('computer-score');
+        const streakScoreEl = document.getElementById('streak-score');
+        const maxStreakEl = document.getElementById('max-streak');
+        const totalGamesEl = document.getElementById('total-games');
+
+        // Main Game Loop
+        function playRound(playerChoice) {
+            if (isPlaying) return;
+            isPlaying = true;
+
+            // Enable sound context on first user click
+            if (soundEnabled && (!synth || Tone.context.state !== 'running')) {
+                Tone.start();
+                initAudio();
+            }
+
+            // Reset Glow & Hand Styles
+            playerHandBox.className = "w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-slate-800/80 border-2 border-slate-600 flex items-center justify-center text-6xl sm:text-7xl transition-all duration-300 shadow-inner animate-shake";
+            computerHandBox.className = "w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-slate-800/80 border-2 border-slate-600 flex items-center justify-center text-6xl sm:text-7xl transition-all duration-300 shadow-inner animate-shake";
+
+            // Default Rock Icon while shaking
+            playerHandIcon.textContent = '✊';
+            computerHandIcon.textContent = '✊';
+            
+            statusMessage.textContent = '안 내면 진 거...!';
+            statusMessage.className = 'font-jua text-2xl sm:text-3xl text-amber-300 transition-all duration-300 text-center';
+            resultBanner.style.opacity = '0';
+
+            // Shake Audio Countdown Effect
+            let shakeCount = 0;
+            const shakeInterval = setInterval(() => {
+                playSound('shake');
+                shakeCount++;
+                if (shakeCount >= 3) clearInterval(shakeInterval);
+            }, 300);
+
+            // Calculate Result after Shake Animation (1.2 seconds)
+            setTimeout(() => {
+                playerHandBox.classList.remove('animate-shake');
+                computerHandBox.classList.remove('animate-shake');
+
+                // Computer Choice Randomization
+                const keys = Object.keys(CHOICES);
+                const computerChoice = keys[Math.floor(Math.random() * keys.length)];
+
+                // Update UI Icons
+                playerHandIcon.textContent = CHOICES[playerChoice].icon;
+                computerHandIcon.textContent = CHOICES[computerChoice].icon;
+
+                // Evaluate Winner
+                if (playerChoice === computerChoice) {
+                    handleResult('draw', playerChoice, computerChoice);
+                } else if (CHOICES[playerChoice].beats === computerChoice) {
+                    handleResult('win', playerChoice, computerChoice);
+                } else {
+                    handleResult('lose', playerChoice, computerChoice);
+                }
+
+                isPlaying = false;
+            }, 1200);
+        }
+
+        // Handle Result State & UI Updates
+        function handleResult(result, playerChoice, computerChoice) {
+            if (result === 'win') {
+                stats.wins++;
+                stats.streak++;
+                if (stats.streak > stats.maxStreak) {
+                    stats.maxStreak = stats.streak;
+                }
+
+                playerHandBox.classList.add('glow-win');
+                statusMessage.textContent = '🎉 승리했습니다!';
+                statusMessage.className = 'font-jua text-3xl sm:text-4xl text-emerald-400 transition-all duration-300 text-center scale-110';
+                resultBanner.textContent = `${CHOICES[playerChoice].name}이(가) ${CHOICES[computerChoice].name}을(를) 이겼습니다!`;
+                playSound('win');
+
+            } else if (result === 'lose') {
+                stats.losses++;
+                stats.streak = 0; // Reset streak on loss
+
+                computerHandBox.classList.add('glow-lose');
+                statusMessage.textContent = '😭 패배했습니다...';
+                statusMessage.className = 'font-jua text-3xl sm:text-4xl text-rose-400 transition-all duration-300 text-center scale-110';
+                resultBanner.textContent = `${CHOICES[computerChoice].name}이(가) ${CHOICES[playerChoice].name}을(를) 이겼습니다!`;
+                playSound('lose');
+
+            } else {
+                stats.draws++;
+
+                playerHandBox.classList.add('glow-draw');
+                computerHandBox.classList.add('glow-draw');
+                statusMessage.textContent = '🤝 비겼습니다!';
+                statusMessage.className = 'font-jua text-3xl sm:text-4xl text-amber-300 transition-all duration-300 text-center scale-110';
+                resultBanner.textContent = `둘 다 ${CHOICES[playerChoice].name}을(를) 냈습니다.`;
+                playSound('draw');
+            }
+
+            resultBanner.style.opacity = '1';
+            updateStatsUI();
+        }
+
+        // Update Text Display for Stats
+        function updateStatsUI() {
+            playerScoreEl.textContent = stats.wins;
+            computerScoreEl.textContent = stats.losses;
+            streakScoreEl.textContent = stats.streak;
+            maxStreakEl.textContent = stats.maxStreak;
+            
+            const total = stats.wins + stats.draws + stats.losses;
+            totalGamesEl.textContent = `${total}전 ${stats.wins}승 ${stats.draws}무 ${stats.losses}패`;
+        }
+
+        // Reset All Game Stats
+        function resetStats() {
+            stats = { wins: 0, losses: 0, draws: 0, streak: 0, maxStreak: 0 };
+            updateStatsUI();
+            statusMessage.textContent = '전적이 초기화되었습니다!';
+            statusMessage.className = 'font-jua text-xl text-slate-400 transition-all duration-300 text-center';
+            resultBanner.style.opacity = '0';
+            playerHandBox.className = "w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-slate-800/80 border-2 border-slate-600 flex items-center justify-center text-6xl sm:text-7xl transition-all duration-300 shadow-inner";
+            computerHandBox.className = "w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-slate-800/80 border-2 border-slate-600 flex items-center justify-center text-6xl sm:text-7xl transition-all duration-300 shadow-inner";
+            playerHandIcon.textContent = '✊';
+            computerHandIcon.textContent = '✊';
+        }
+    </script>
+</body>
+</html>
